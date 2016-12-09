@@ -1,12 +1,8 @@
-#!/usr/bin/python3
-
-
 import docker
-client = docker.from_env()
 import platform
-import json
 import re
 import io
+from lockfile import FileLock
 
 def parse_hostsfile(path='/etc/hosts'):
     f = open(path,'r')
@@ -26,31 +22,32 @@ def parse_hostsfile(path='/etc/hosts'):
     return hosts_by_ip
 
 def write_hostsfile(hostmapping, path='/etc/hosts'):
-    f = open(path,'r')
-    fn = open(path + "-docker-update-hosts", 'w')
-    r= f.readline()
-    in_chunk = False
-    chunk_found = False
-    while r != "":
-        if not in_chunk:
-            fn.write(r)
-            if re.match("\s*#DOCKER_UPDATE_HOSTS_START",r):
-                in_chunk = True
-                fn.write(format_for_hostsfile(hostmapping))
-                chunk_found = True
-        if in_chunk:
-            if re.match("\s*#DOCKER_UPDATE_HOSTS_END",r):
-                in_chunk = False
-                fn.write(r)
+    with FileLock(path+"-docker-update-hosts.lock"):
+        f = open(path,'r')
+        fn = open(path + "-docker-update-hosts", 'w')
         r= f.readline()
-    f.close()
-    fn.close()
-    if not chunk_found:
-        print("not updating hostsfile, i did not find the two necessary commpents #DOCKER_UPDATE_HOSTS_START and #DOCKER_UPDATE_HOSTS_END")
-    else:
-        import shutil
-        shutil.move(path+"-docker-update-hosts",path)
-        print("updated")
+        in_chunk = False
+        chunk_found = False
+        while r != "":
+            if not in_chunk:
+                fn.write(r)
+                if re.match("\s*#DOCKER_UPDATE_HOSTS_START",r):
+                    in_chunk = True
+                    fn.write(format_for_hostsfile(hostmapping))
+                    chunk_found = True
+            if in_chunk:
+                if re.match("\s*#DOCKER_UPDATE_HOSTS_END",r):
+                    in_chunk = False
+                    fn.write(r)
+            r= f.readline()
+        f.close()
+        fn.close()
+        if not chunk_found:
+            print("not updating hostsfile, i did not find the two necessary commpents #DOCKER_UPDATE_HOSTS_START and #DOCKER_UPDATE_HOSTS_END")
+        else:
+            import shutil
+            shutil.move(path+"-docker-update-hosts",path)
+            print("updated")
 
 
 def hostmapping_ipbyhost(hostbyip):
@@ -109,21 +106,8 @@ def get_hosts(client,suffix='docker.local'):
 def update_hostsfile(tobe):
     asis = parse_hostsfile()
     if has_missing_data(tobe,asis):
-        print(has_missing_data(tobe,asis))
-        print()
-        print(format_for_hostsfile(tobe))
         write_hostsfile(tobe)
+        return has_missing_data(tobe,asis)
+    else:
+        return None
 
-update_hostsfile(get_hosts(client))
-
-for k in client.events():
-    dct = json.loads(k.decode('UTF-8'))
-    if not dct['Type'] == 'container':
-        continue
-    if not 'status' in dct or not dct['status'] in ('start','stop','die'):
-        continue
-    print("got event %s\n\n" % dct)
-    
-    update_hostsfile(get_hosts(client))
-    
-    

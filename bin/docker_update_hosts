@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+from docker_hostsfile_updater import update_hostsfile, get_hosts
+import docker, json
+from optparse import OptionParser
+import logging, logging.handlers
+import sys
+import daemon
+
+parser = OptionParser()
+parser.add_option('-n','--no-daemon',help='Do not daemonize', action='store_false',dest='daemon',default=True)
+
+(options,args) = parser.parse_args()
+
+
+def mainLoop():
+    if options.daemon:
+        handler = logging.handlers.SysLogHandler(address="/dev/log", facility=logging.handlers.SysLogHandler.LOG_DAEMON)
+    else:
+        handler = logging.StreamHandler(sys.stdout)
+
+    my_logger = logging.getLogger('docker_update_hosts')
+    my_logger.addHandler(handler)
+    my_logger.setLevel(logging.INFO)
+
+    client = docker.from_env()
+    try:
+        res = update_hostsfile(get_hosts(client))
+    except:
+        my_logger.exception("Error while updating /etc/hosts, exiting")
+        sys.exit(1)
+
+    for k in client.events():
+        dct = json.loads(k.decode('UTF-8'))
+        if not dct['Type'] == 'container':
+            continue
+        if not 'status' in dct or not dct['status'] in ('start','stop','die'):
+            continue
+
+        try:
+            res = update_hostsfile(get_hosts(client))
+            if res:
+                my_logger.log(res)
+        except:
+            my_logger.exception("Error while updating /etc/hosts, exiting")
+            sys.exit(1)
+
+if not options.daemon:
+    mainLoop()
+else:
+    with daemon.DaemonContext():
+        mainLoop()
