@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 
-from docker_hostsfile_updater import update_hostsfile, get_hosts
+from docker_update_hosts.docker_hostsfile_updater import update_hostsfile, get_hosts
 import docker, json
 from optparse import OptionParser
 import logging, logging.handlers
 import sys
 import daemon
+import daemon.pidfile
 
 parser = OptionParser()
 parser.add_option('-n','--no-daemon',help='Do not daemonize', action='store_false',dest='daemon',default=True)
-
+parser.add_option('-o','--once',help='Update hostsfile once, then exit',action='store_false',dest='loop',default=True)
+parser.add_option('-d','--debug',help='Debug mode',action='store_true',dest='debug',default=False)
+parser.add_option('-p','--pidfile',help='Pid file',action='store',metavar='PIDFILE',dest='pidfile', default='/tmp/docker_update_hosts.pid')
 (options,args) = parser.parse_args()
 
 
 def mainLoop():
-    if options.daemon:
+    if options.daemon and options.loop:
         handler = logging.handlers.SysLogHandler(address="/dev/log", facility=logging.handlers.SysLogHandler.LOG_DAEMON)
     else:
         handler = logging.StreamHandler(sys.stdout)
@@ -29,6 +32,9 @@ def mainLoop():
     except:
         my_logger.exception("Error while updating /etc/hosts, exiting")
         sys.exit(1)
+
+    if not options.loop:
+        sys.exit(0)
 
     for k in client.events():
         dct = json.loads(k.decode('UTF-8'))
@@ -45,8 +51,16 @@ def mainLoop():
             my_logger.exception("Error while updating /etc/hosts, exiting")
             sys.exit(1)
 
-if not options.daemon:
+context = daemon.DaemonContext()
+context.detach_process = (options.daemon) and (options.loop)
+context.umask = 0o002
+if options.debug:
+    context.files_preserve = [ sys.stderr, sys.stdin, sys.stdout ]
+    context.stdin = sys.stdin
+    context.stdout = sys.stdout
+    context.stderr = sys.stderr
+if context.detach_process:
+    context.pidfile = daemon.pidfile.PIDLockFile(options.pidfile)
+
+with context:
     mainLoop()
-else:
-    with daemon.DaemonContext():
-        mainLoop()

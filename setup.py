@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 setup(
     name = "docker_update_hosts",
     version = "0.1",
-    requires=[
+    install_requires=[
         'python-daemon',
         'docker-py',
     ],

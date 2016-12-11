@@ -22,7 +22,7 @@ def parse_hostsfile(path='/etc/hosts'):
     return hosts_by_ip
 
 def write_hostsfile(hostmapping, path='/etc/hosts'):
-    with FileLock(path+"-docker-update-hosts.lock"):
+    with FileLock("/tmp/docker-update-hosts.lock"):
         f = open(path,'r')
         fn = open(path + "-docker-update-hosts", 'w')
         r= f.readline()
