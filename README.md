@@ -9,8 +9,11 @@ A script modifying /etc/hosts is only feasible for smaller setups, but it
 has the advantage that when the script exits / crashes, resolving DNS names
 on the host keeps working.
 
+The script adds `[containerlabel].docker.local` hostnames, but for containers launched using docker-compose, extra hostnames are generated: `[number].[service].[group].docker.local` (see below for an example).
+
 ## How to
 
+* make sure you have python 3 (/usr/bin/python3 in most linux distributions). The daemon does not work (yet) on python2, fixing this would be trivial.
 * first install the script using python3 setup.py install
 * then edit the /etc/hosts file, and add the following 2 lines (the script
   will only touch the section between these lines, and if the lines don't
@@ -21,7 +24,7 @@ on the host keeps working.
 #DOCKER_UPDATE_HOSTS_END
 
 ```
-
+## command line arguments
 
 
 ## Example
@@ -48,7 +51,6 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 
 #DOCKER_UPDATE_HOSTS_START
-172.17.0.2	blablae.docker.local
 172.19.0.2	1.redmine.redmine.docker.local redmine_redmine_1.docker.local
 172.19.0.3	1.db.redmine.docker.local redmine_db_1.docker.local
 #DOCKER_UPDATE_HOSTS_END
