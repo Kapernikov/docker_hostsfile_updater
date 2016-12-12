@@ -24,8 +24,12 @@ The script adds `[containerlabel].docker.local` hostnames, but for containers la
 #DOCKER_UPDATE_HOSTS_END
 
 ```
-## command line arguments
+## Command line arguments
 
+ * '-n','--no-daemon' : do not run as a daemon but keep running in the foreground
+ * '-o','--once' : run once (updating /etc/hosts if needed) and exit (eg for running as a cron job)
+ * '-d','--debug' : run in foreground and do not log to syslog but stdout (and be more verbose)
+ * '-p','--pidfile' : write a pid file (default: '/tmp/docker_update_hosts.pid')
 
 ## Example
 
