@@ -46,7 +46,7 @@ def mainLoop():
         try:
             res = update_hostsfile(get_hosts(client))
             if res:
-                my_logger.log(res)
+                my_logger.info(res)
         except:
             my_logger.exception("Error while updating /etc/hosts, exiting")
             sys.exit(1)
